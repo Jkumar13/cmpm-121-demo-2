@@ -6,7 +6,6 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 document.title = APP_NAME;
 app.innerHTML = APP_NAME;
 
-// 1. Create the <h1> element for the title
 const appTitle = document.createElement("h1");
 appTitle.textContent = "app title";
 
@@ -16,25 +15,35 @@ canvas.height = 256;
 
 const clearButton = document.createElement("button");
 clearButton.textContent = "Clear Canvas";
+const undoButton = document.createElement("button");
+undoButton.textContent = "Undo";
+const redoButton = document.createElement("button");
+redoButton.textContent = "Redo";
 
 document.body.appendChild(appTitle);
 document.body.appendChild(canvas);
 document.body.appendChild(clearButton);
+document.body.appendChild(undoButton);
+document.body.appendChild(redoButton);
 
 const ctx = canvas.getContext("2d");
 
-let lines: Array<Array<{ x: number, y: number }>> = [];
-let currentLine: Array<{ x: number, y: number }> = [];
+
+let lines: Array<Array<{ x: number, y: number }>> = []; 
+let currentLine: Array<{ x: number, y: number }> = []; 
+let undoStack: Array<Array<{ x: number, y: number }>> = []; 
+let redoStack: Array<Array<{ x: number, y: number }>> = []; 
 
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
 
+// 8. Handle mouse events for drawing
 function startDrawing(event: MouseEvent) {
     isDrawing = true;
     lastX = event.offsetX;
     lastY = event.offsetY;
-    currentLine = [{ x: lastX, y: lastY }];
+    currentLine = [{ x: lastX, y: lastY }]; 
 }
 
 function draw(event: MouseEvent) {
@@ -54,8 +63,9 @@ function draw(event: MouseEvent) {
 
 function stopDrawing() {
     if (isDrawing) {
-        lines.push(currentLine);
-        currentLine = [];
+        lines.push(currentLine); 
+        currentLine = []; 
+        redoStack = []; 
     }
     isDrawing = false;
 }
@@ -66,12 +76,34 @@ canvas.addEventListener("mouseup", stopDrawing);
 canvas.addEventListener("mouseleave", stopDrawing);
 
 clearButton.addEventListener("click", () => {
-    lines = [];
+    lines = []; 
+    undoStack = []; 
+    redoStack = []; 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
+undoButton.addEventListener("click", () => {
+    if (lines.length > 0) {
+        const lastLine = lines.pop()!;
+        undoStack.push(lastLine);
+
+        const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
+        canvas.dispatchEvent(drawingChangedEvent);
+    }
+});
+
+redoButton.addEventListener("click", () => {
+    if (redoStack.length > 0) {
+        const lastUndoneLine = redoStack.pop()!;
+        lines.push(lastUndoneLine);
+
+        const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
+        canvas.dispatchEvent(drawingChangedEvent);
+    }
+});
+
 canvas.addEventListener("drawing-changed", () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
     lines.forEach(line => {
         ctx.beginPath();
