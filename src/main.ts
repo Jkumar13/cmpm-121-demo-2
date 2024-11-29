@@ -173,7 +173,7 @@ canvas.addEventListener('mousemove', (event: MouseEvent) => {
 });
 
 function redrawToolPreview() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
+    // ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
     if (toolPreview) {
         toolPreview.draw(ctx);  // Draw the tool preview (sticker)
     }
@@ -300,6 +300,10 @@ canvas.addEventListener("drawing-changed", () => {
         line.display(ctx);
     });
 
+   stickers.forEach(sticker => {
+    sticker.draw(ctx);
+});
+
     if (currentLine) {
         currentLine.display(ctx);
     }
@@ -325,4 +329,45 @@ function logStacks() {
     console.log("Lines:", lines);
     console.log("Undo Stack:", undoStack);
     console.log("Redo Stack:", redoStack);
+}
+
+// export button
+document.getElementById('exportButton')?.addEventListener('click', () => {
+    exportCanvasToPNG();
+});
+
+// function to export
+function exportCanvasToPNG() {
+    // Create a new high-resolution canvas
+    const highResCanvas = document.createElement('canvas');
+    highResCanvas.width = 1024;
+    highResCanvas.height = 1024;
+
+    // get the context for the high-resolution canvas
+    const highResCtx = highResCanvas.getContext('2d');
+    
+    if (!highResCtx) {
+        console.error('Failed to get 2D context for high-res canvas.');
+        return;
+    }
+
+    // scale the context for 4x resolution
+    highResCtx.scale(4, 4);
+
+    // draw the lines on the new canvas
+    lines.forEach(line => {
+        line.display(highResCtx);
+    });
+
+    // draw the stickers on the new canvas
+    stickers.forEach(sticker => {
+        sticker.draw(highResCtx);  // this will be scaled by the highResCtx scale factor
+    });
+
+    // trigger a download of the canvas as a PNG file
+    const dataUrl = highResCanvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'high_resolution_drawing.png';
+    a.click();
 }
