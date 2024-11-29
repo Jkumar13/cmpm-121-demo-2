@@ -63,11 +63,37 @@ class LineCommand {
     }
 }
 
+class Sticker {
+    x: number;
+    y: number;
+    emoji: string;
+    thickness: number;
+
+    constructor(emoji: string, thickness: number) {
+        this.x = 0;
+        this.y = 0;
+        this.emoji = emoji;
+        this.thickness = thickness;
+    }
+
+    move(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.font = '24px Arial';
+        ctx.fillText(this.emoji, this.x, this.y);
+    }
+
+}
+
 // Tool preview class
 class ToolPreviewCommand {
-    private thickness: number;
-    private x: number;
-    private y: number;
+    thickness: number;
+    x: number;
+    y: number;
+    emoji: string;
 
     constructor(thickness: number) {
         this.thickness = thickness;
@@ -93,6 +119,60 @@ let currentLine: LineCommand | null = null;
 let undoStack: Array<LineCommand> = [];
 let redoStack: Array<LineCommand> = [];
 let toolPreview: ToolPreviewCommand | null = null;
+let stickers: Sticker[] = [];
+
+// Event listeners for sticker buttons
+document.getElementById('stickerButton1')?.addEventListener('click', () => {
+    toolPreview = new Sticker('😀', 5); // Select the first sticker
+    canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
+});
+
+document.getElementById('stickerButton2')?.addEventListener('click', () => {
+    toolPreview = new Sticker('🐱', 5); // Select the second sticker
+    canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
+});
+
+document.getElementById('stickerButton3')?.addEventListener('click', () => {
+    toolPreview = new Sticker('🌟', 5); // Select the third sticker
+    canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
+});
+
+
+
+canvas.addEventListener('mousemove', (event: MouseEvent) => {
+    if (!isDrawing && toolPreview) {
+        toolPreview.move(event.offsetX, event.offsetY);
+        redrawToolPreview();
+        const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
+        canvas.dispatchEvent(drawingChangedEvent);
+    }
+});
+
+function redrawToolPreview() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
+    if (toolPreview) {
+        toolPreview.draw(ctx);  // Draw the tool preview (sticker)
+    }
+}
+
+function redrawCanvas() {
+    // ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
+    stickers.forEach(sticker => {
+        sticker.draw(ctx);
+    });
+}
+
+canvas.addEventListener('click', (event: MouseEvent) => {
+    if (toolPreview instanceof Sticker) {
+        const newSticker = new Sticker(toolPreview.emoji, 5);
+        newSticker.move(event.offsetX, event.offsetY);
+        stickers.push(newSticker);
+
+        toolPreview = null;
+        redrawCanvas();
+    }
+});
+
 
 let isDrawing = false;
 let lastX = 0;
@@ -156,6 +236,7 @@ clearButton.addEventListener("click", () => {
     lines = [];
     undoStack = [];
     redoStack = [];
+    stickers = [];
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     console.log("Clear button pressed.");
@@ -206,7 +287,7 @@ canvas.addEventListener("drawing-changed", () => {
 });
 
 canvas.addEventListener("mousemove", (event) => {
-    if (!isDrawing && toolPreview) {
+    if (!isDrawing && toolPreview instanceof ToolPreviewCommand) {
         toolPreview.move(event.offsetX, event.offsetY);
         const toolMovedEvent = new CustomEvent("tool-moved", { detail: { x: event.offsetX, y: event.offsetY } });
         canvas.dispatchEvent(toolMovedEvent);
