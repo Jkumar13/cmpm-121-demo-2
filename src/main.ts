@@ -9,7 +9,6 @@ app.innerHTML = APP_NAME;
 const appTitle = document.createElement("h1");
 appTitle.textContent = "app title";
 
-
 const canvas = document.createElement("canvas");
 canvas.width = 256;
 canvas.height = 256;
@@ -29,10 +28,34 @@ document.body.appendChild(redoButton);
 
 const ctx = canvas.getContext("2d");
 
-let lines: Array<Array<{ x: number, y: number }>> = [];
-let currentLine: Array<{ x: number, y: number }> = [];
-let undoStack: Array<Array<{ x: number, y: number }>> = [];
-let redoStack: Array<Array<{ x: number, y: number }>> = [];
+// Command class to represent a drawing operation
+class LineCommand {
+    private points: Array<{ x: number, y: number }> = [];
+
+    constructor(x: number, y: number) {
+        this.points.push({ x, y });
+    }
+
+    drag(x: number, y: number) {
+        this.points.push({ x, y });
+    }
+
+    display(ctx: CanvasRenderingContext2D) {
+        if (this.points.length > 0) {
+            ctx.beginPath();
+            ctx.moveTo(this.points[0].x, this.points[0].y);
+            this.points.forEach(point => {
+                ctx.lineTo(point.x, point.y);
+            });
+            ctx.stroke();
+        }
+    }
+}
+
+let lines: Array<LineCommand> = [];
+let currentLine: LineCommand | null = null;
+let undoStack: Array<LineCommand> = [];
+let redoStack: Array<LineCommand> = [];
 
 let isDrawing = false;
 let lastX = 0;
@@ -42,16 +65,16 @@ function startDrawing(event: MouseEvent) {
     isDrawing = true;
     lastX = event.offsetX;
     lastY = event.offsetY;
-    currentLine = [{ x: lastX, y: lastY }];
+    currentLine = new LineCommand(lastX, lastY);
 }
 
 function draw(event: MouseEvent) {
-    if (!isDrawing) return;
+    if (!isDrawing || !currentLine) return;
 
     const currentX = event.offsetX;
     const currentY = event.offsetY;
 
-    currentLine.push({ x: currentX, y: currentY });
+    currentLine.drag(currentX, currentY);
 
     const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
     canvas.dispatchEvent(drawingChangedEvent);
@@ -61,10 +84,11 @@ function draw(event: MouseEvent) {
 }
 
 function stopDrawing() {
-    if (isDrawing) {
+    if (isDrawing && currentLine) {
         lines.push(currentLine);
-        currentLine = [];
-        redoStack = [];
+        undoStack.push(currentLine); // Save the current line to undo stack
+        currentLine = null;
+        redoStack = []; // Clear redo stack after a new line is drawn
     }
     isDrawing = false;
 }
@@ -78,9 +102,8 @@ clearButton.addEventListener("click", () => {
     lines = [];
     undoStack = [];
     redoStack = [];
-    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Log the current state of stacks and lines
     console.log("Clear button pressed.");
     logStacks();
 });
@@ -88,8 +111,7 @@ clearButton.addEventListener("click", () => {
 undoButton.addEventListener("click", () => {
     if (lines.length > 0) {
         const lastLine = lines.pop()!;
-        redoStack.push(lastLine); 
-        undoStack = []; 
+        redoStack.push(lastLine); // Add the last drawn line to redo stack
 
         const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
         canvas.dispatchEvent(drawingChangedEvent);
@@ -100,11 +122,9 @@ undoButton.addEventListener("click", () => {
 });
 
 redoButton.addEventListener("click", () => {
-    console.log("ok");
     if (redoStack.length > 0) {
-        console.log("ok");
         const lastUndoneLine = redoStack.pop()!;
-        lines.push(lastUndoneLine);
+        lines.push(lastUndoneLine); // Restore line to the main canvas
 
         const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
         canvas.dispatchEvent(drawingChangedEvent);
@@ -118,21 +138,11 @@ canvas.addEventListener("drawing-changed", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     lines.forEach(line => {
-        ctx.beginPath();
-        ctx.moveTo(line[0].x, line[0].y);
-        line.forEach(point => {
-            ctx.lineTo(point.x, point.y);
-        });
-        ctx.stroke();
+        line.display(ctx);
     });
 
-    if (currentLine.length > 0) {
-        ctx.beginPath();
-        ctx.moveTo(currentLine[0].x, currentLine[0].y);
-        currentLine.forEach(point => {
-            ctx.lineTo(point.x, point.y);
-        });
-        ctx.stroke();
+    if (currentLine) {
+        currentLine.display(ctx);
     }
 });
 
