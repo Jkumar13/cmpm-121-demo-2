@@ -121,21 +121,45 @@ let redoStack: Array<LineCommand> = [];
 let toolPreview: ToolPreviewCommand | null = null;
 let stickers: Sticker[] = [];
 
-// Event listeners for sticker buttons
-document.getElementById('stickerButton1')?.addEventListener('click', () => {
-    toolPreview = new Sticker('😀', 5); // Select the first sticker
-    canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
+let stickerData = [
+    { id: 1, emoji: '🧽' },
+    { id: 2, emoji: '🧽' },
+    { id: 3, emoji: '😀' }
+];
+
+// Event listener for creating a custom sticker
+document.getElementById('createStickerButton')?.addEventListener('click', () => {
+    const customStickerEmoji = prompt('Custom sticker text: ');
+    
+    if (customStickerEmoji) {
+        // Add the new custom sticker to the sticker list
+        const newSticker = { id: stickerData.length + 1, emoji: customStickerEmoji };
+        stickerData.push(newSticker);  // Add custom sticker to the array
+        console.log("New custom sticker added:", newSticker);
+        generateStickerButtons();  // Re-generate buttons with updated stickers
+    } else {
+        console.log("No custom sticker created.");
+    }
 });
 
-document.getElementById('stickerButton2')?.addEventListener('click', () => {
-    toolPreview = new Sticker('🐱', 5); // Select the second sticker
-    canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
-});
+// Generate buttons for each sticker
+function generateStickerButtons() {
+    // const stickerButtonContainer = document.getElementById('stickerButtonsContainer');
+    
+    // Clear previous buttons
+    // stickerButtonContainer?.innerHTML = '';
 
-document.getElementById('stickerButton3')?.addEventListener('click', () => {
-    toolPreview = new Sticker('🌟', 5); // Select the third sticker
-    canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
-});
+    stickerData.forEach(sticker => {
+        const stickerButton = document.createElement('button');
+        stickerButton.textContent = sticker.emoji;
+            toolPreview = new Sticker(sticker.emoji, 5);  // Set toolPreview to the selected sticker
+            canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
+        
+        // stickerButtonContainer?.appendChild(stickerButton);
+    });
+}
+
+generateStickerButtons();
 
 
 
