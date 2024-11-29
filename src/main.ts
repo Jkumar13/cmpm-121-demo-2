@@ -20,20 +20,30 @@ undoButton.textContent = "Undo";
 const redoButton = document.createElement("button");
 redoButton.textContent = "Redo";
 
+// Marker buttons
+const thinButton = document.createElement("button");
+thinButton.textContent = "Thin Marker";
+const thickButton = document.createElement("button");
+thickButton.textContent = "Thick Marker";
+
 document.body.appendChild(appTitle);
 document.body.appendChild(canvas);
 document.body.appendChild(clearButton);
 document.body.appendChild(undoButton);
 document.body.appendChild(redoButton);
+document.body.appendChild(thinButton);
+document.body.appendChild(thickButton);
 
 const ctx = canvas.getContext("2d");
 
-// Command class to represent a drawing operation
+// Command class to represent a drawing operation with thickness
 class LineCommand {
     private points: Array<{ x: number, y: number }> = [];
+    private thickness: number;
 
-    constructor(x: number, y: number) {
+    constructor(x: number, y: number, thickness: number) {
         this.points.push({ x, y });
+        this.thickness = thickness;
     }
 
     drag(x: number, y: number) {
@@ -47,6 +57,7 @@ class LineCommand {
             this.points.forEach(point => {
                 ctx.lineTo(point.x, point.y);
             });
+            ctx.lineWidth = this.thickness; // Set the line thickness
             ctx.stroke();
         }
     }
@@ -60,12 +71,26 @@ let redoStack: Array<LineCommand> = [];
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
+let currentThickness = 1; // Default thickness (thin)
+
+// Function to handle tool button selection
+function selectTool(button: HTMLButtonElement) {
+    const buttons = [thinButton, thickButton];
+    buttons.forEach(btn => btn.classList.remove("selectedTool"));
+    button.classList.add("selectedTool");
+
+    // Set the current thickness based on the selected tool
+    currentThickness = button === thinButton ? 1 : 5;
+}
+
+thinButton.addEventListener("click", () => selectTool(thinButton));
+thickButton.addEventListener("click", () => selectTool(thickButton));
 
 function startDrawing(event: MouseEvent) {
     isDrawing = true;
     lastX = event.offsetX;
     lastY = event.offsetY;
-    currentLine = new LineCommand(lastX, lastY);
+    currentLine = new LineCommand(lastX, lastY, currentThickness); // Pass thickness to the line command
 }
 
 function draw(event: MouseEvent) {
