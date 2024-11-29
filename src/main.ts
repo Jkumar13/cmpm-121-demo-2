@@ -63,10 +63,36 @@ class LineCommand {
     }
 }
 
+// Tool preview class
+class ToolPreviewCommand {
+    private thickness: number;
+    private x: number;
+    private y: number;
+
+    constructor(thickness: number) {
+        this.thickness = thickness;
+        this.x = 0;
+        this.y = 0;
+    }
+
+    move(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = "rgba(0, 0, 0, 5)";
+        ctx.fill();
+    }
+}
+
 let lines: Array<LineCommand> = [];
 let currentLine: LineCommand | null = null;
 let undoStack: Array<LineCommand> = [];
 let redoStack: Array<LineCommand> = [];
+let toolPreview: ToolPreviewCommand | null = null;
 
 let isDrawing = false;
 let lastX = 0;
@@ -80,7 +106,10 @@ function selectTool(button: HTMLButtonElement) {
     button.classList.add("selectedTool");
 
     // Set the current thickness based on the selected tool
-    currentThickness = button === thinButton ? 1 : 5;
+    currentThickness = button === thinButton ? 7 : 15;
+
+    // Update the tool preview with the selected thickness
+    toolPreview = new ToolPreviewCommand(currentThickness);
 }
 
 thinButton.addEventListener("click", () => selectTool(thinButton));
@@ -168,6 +197,22 @@ canvas.addEventListener("drawing-changed", () => {
 
     if (currentLine) {
         currentLine.display(ctx);
+    }
+
+    // Draw the tool preview if not drawing
+    if (!isDrawing && toolPreview) {
+        toolPreview.draw(ctx);
+    }
+});
+
+canvas.addEventListener("mousemove", (event) => {
+    if (!isDrawing && toolPreview) {
+        toolPreview.move(event.offsetX, event.offsetY);
+        const toolMovedEvent = new CustomEvent("tool-moved", { detail: { x: event.offsetX, y: event.offsetY } });
+        canvas.dispatchEvent(toolMovedEvent);
+
+        const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
+        canvas.dispatchEvent(drawingChangedEvent);
     }
 });
 
