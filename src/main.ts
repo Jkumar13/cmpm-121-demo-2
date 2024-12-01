@@ -26,6 +26,12 @@ thinButton.textContent = "Thin Brush";
 const thickButton = document.createElement("button");
 thickButton.textContent = "Thick Brush";
 
+// Color Picker for drawing color
+const colorPicker = document.createElement("input");
+colorPicker.type = "color";
+colorPicker.value = "#000000";  // Default color is black
+
+// Add elements to the page
 document.body.appendChild(appTitle);
 document.body.appendChild(canvas);
 document.body.appendChild(clearButton);
@@ -33,6 +39,8 @@ document.body.appendChild(undoButton);
 document.body.appendChild(redoButton);
 document.body.appendChild(thinButton);
 document.body.appendChild(thickButton);
+document.body.appendChild(colorPicker);
+
 
 const ctx = canvas.getContext("2d");
 
@@ -40,10 +48,12 @@ const ctx = canvas.getContext("2d");
 class LineCommand {
     private points: Array<{ x: number, y: number }> = [];
     private thickness: number;
+    private color: string;
 
-    constructor(x: number, y: number, thickness: number) {
+    constructor(x: number, y: number, thickness: number, color: string) {
         this.points.push({ x, y });
         this.thickness = thickness;
+        this.color = color;
     }
 
     drag(x: number, y: number) {
@@ -58,6 +68,7 @@ class LineCommand {
                 ctx.lineTo(point.x, point.y);
             });
             ctx.lineWidth = this.thickness; // Set the line thickness
+            ctx.strokeStyle = this.color;  // Set the stroke color
             ctx.stroke();
         }
     }
@@ -88,31 +99,44 @@ class Sticker {
 
 }
 
-// Tool preview class
+// Generate a random color in hex format
+function randomColor() {
+    const r = Math.floor(Math.random() * 256);
+    const g = Math.floor(Math.random() * 256);
+    const b = Math.floor(Math.random() * 256);
+        return `rgb(${r},${g},${b})`;
+}
+
 class ToolPreviewCommand {
     thickness: number;
     x: number;
     y: number;
-    emoji: string;
+    color: string;
 
     constructor(thickness: number) {
         this.thickness = thickness;
         this.x = 0;
         this.y = 0;
+        this.color = randomColor(); // Set initial random color
     }
 
+    // Update the preview position
     move(x: number, y: number) {
         this.x = x;
         this.y = y;
     }
 
+    // Draw the preview of the selected tool
     draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
-        ctx.fillStyle = "rgba(0, 0, 0, 5)";
+        ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI); // Draw a circle preview
+        ctx.fillStyle = this.color;  // Use the randomized color
         ctx.fill();
     }
 }
+
+
+
 
 let lines: Array<LineCommand> = [];
 let currentLine: LineCommand | null = null;
@@ -120,6 +144,7 @@ let undoStack: Array<LineCommand> = [];
 let redoStack: Array<LineCommand> = [];
 let toolPreview: ToolPreviewCommand | null = null;
 let stickers: Sticker[] = [];
+let currentColor = colorPicker.value;
 
 let stickerData = [
     { id: 1, emoji: '🧽' },
@@ -135,27 +160,17 @@ document.getElementById('createStickerButton')?.addEventListener('click', () => 
         // Add the new custom sticker to the sticker list
         const newSticker = { id: stickerData.length + 1, emoji: customStickerEmoji };
         stickerData.push(newSticker);  // Add custom sticker to the array
-        console.log("New custom sticker added:", newSticker);
         generateStickerButtons();  // Re-generate buttons with updated stickers
-    } else {
-        console.log("No custom sticker created.");
     }
 });
 
 // Generate buttons for each sticker
 function generateStickerButtons() {
-    // const stickerButtonContainer = document.getElementById('stickerButtonsContainer');
-    
-    // Clear previous buttons
-    // stickerButtonContainer?.innerHTML = '';
-
     stickerData.forEach(sticker => {
         const stickerButton = document.createElement('button');
         stickerButton.textContent = sticker.emoji;
             toolPreview = new Sticker(sticker.emoji, 5);  // Set toolPreview to the selected sticker
             canvas.dispatchEvent(new CustomEvent('tool-moved')); // Fire tool-moved event
-        
-        // stickerButtonContainer?.appendChild(stickerButton);
     });
 }
 
@@ -173,14 +188,12 @@ canvas.addEventListener('mousemove', (event: MouseEvent) => {
 });
 
 function redrawToolPreview() {
-    // ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
     if (toolPreview) {
         toolPreview.draw(ctx);  // Draw the tool preview (sticker)
     }
 }
 
 function redrawCanvas() {
-    // ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
     stickers.forEach(sticker => {
         sticker.draw(ctx);
     });
@@ -201,19 +214,30 @@ canvas.addEventListener('click', (event: MouseEvent) => {
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
-let currentThickness = 1; // Default thickness (thin)
+let currentThickness = 1;
 
-// Function to handle tool button selection
+// Update the color when the user selects a new color
+colorPicker.addEventListener('input', (event: Event) => {
+    currentColor = (event.target as HTMLInputElement).value;  // Get the selected color
+});
+
 function selectTool(button: HTMLButtonElement) {
     const buttons = [thinButton, thickButton];
     buttons.forEach(btn => btn.classList.remove("selectedTool"));
     button.classList.add("selectedTool");
 
-    // Set the current thickness based on the selected tool
-    currentThickness = button === thinButton ? 5 : 15;
+    // Randomize the thickness based on the selected tool
+    currentThickness = button === thinButton ? 7 : 20;
 
-    // Update the tool preview with the selected thickness
+    // Create a new tool preview with the selected thickness and color
     toolPreview = new ToolPreviewCommand(currentThickness);
+
+    // Generate a random color for the tool and brush
+    const randomToolColor = toolPreview.color;
+
+    // Set the brush color to the random color
+    currentColor = randomToolColor;
+    canvas.dispatchEvent(new CustomEvent('tool-moved'));
 }
 
 thinButton.addEventListener("click", () => selectTool(thinButton));
@@ -223,8 +247,22 @@ function startDrawing(event: MouseEvent) {
     isDrawing = true;
     lastX = event.offsetX;
     lastY = event.offsetY;
-    currentLine = new LineCommand(lastX, lastY, currentThickness); // Pass thickness to the line command
+    currentLine = new LineCommand(lastX, lastY, currentThickness, currentColor); // Pass thickness to the line command
 }
+
+// Create a color display element to show the selected color
+const colorDisplay = document.createElement("div");
+colorDisplay.style.width = "50px";
+colorDisplay.style.height = "50px";
+colorDisplay.style.backgroundColor = currentColor;
+colorDisplay.style.border = "1px solid #000";
+document.body.appendChild(colorDisplay);
+
+// Update the color display when the color changes
+colorPicker.addEventListener('input', (event: Event) => {
+    currentColor = (event.target as HTMLInputElement).value;
+    colorDisplay.style.backgroundColor = currentColor;  // Update the display to show the selected color
+});
 
 function draw(event: MouseEvent) {
     if (!isDrawing || !currentLine) return;
@@ -262,9 +300,6 @@ clearButton.addEventListener("click", () => {
     redoStack = [];
     stickers = [];
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    console.log("Clear button pressed.");
-    logStacks();
 });
 
 undoButton.addEventListener("click", () => {
@@ -274,9 +309,6 @@ undoButton.addEventListener("click", () => {
 
         const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
         canvas.dispatchEvent(drawingChangedEvent);
-
-        console.log("Undo button pressed.");
-        logStacks();
     }
 });
 
@@ -287,9 +319,6 @@ redoButton.addEventListener("click", () => {
 
         const drawingChangedEvent = new CustomEvent("drawing-changed", { detail: { lines } });
         canvas.dispatchEvent(drawingChangedEvent);
-
-        console.log("Redo button pressed.");
-        logStacks();
     }
 });
 
@@ -324,12 +353,6 @@ canvas.addEventListener("mousemove", (event) => {
         canvas.dispatchEvent(drawingChangedEvent);
     }
 });
-
-function logStacks() {
-    console.log("Lines:", lines);
-    console.log("Undo Stack:", undoStack);
-    console.log("Redo Stack:", redoStack);
-}
 
 // export button
 document.getElementById('exportButton')?.addEventListener('click', () => {
