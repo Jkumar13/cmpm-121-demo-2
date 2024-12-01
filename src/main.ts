@@ -1,13 +1,13 @@
 import "./style.css";
 
-const APP_NAME = "Game";
+const APP_NAME = "Drawing Site";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
 app.innerHTML = APP_NAME;
 
 const appTitle = document.createElement("h1");
-appTitle.textContent = "app title";
+appTitle.textContent = "Draw on the canvas below!";
 
 const canvas = document.createElement("canvas");
 canvas.width = 256;
@@ -22,9 +22,9 @@ redoButton.textContent = "Redo";
 
 // Marker buttons
 const thinButton = document.createElement("button");
-thinButton.textContent = "Thin Marker";
+thinButton.textContent = "Thin Brush";
 const thickButton = document.createElement("button");
-thickButton.textContent = "Thick Marker";
+thickButton.textContent = "Thick Brush";
 
 document.body.appendChild(appTitle);
 document.body.appendChild(canvas);
@@ -210,7 +210,7 @@ function selectTool(button: HTMLButtonElement) {
     button.classList.add("selectedTool");
 
     // Set the current thickness based on the selected tool
-    currentThickness = button === thinButton ? 7 : 15;
+    currentThickness = button === thinButton ? 5 : 15;
 
     // Update the tool preview with the selected thickness
     toolPreview = new ToolPreviewCommand(currentThickness);
